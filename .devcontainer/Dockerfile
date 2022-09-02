@@ -28,3 +28,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     # it is auto created by docker on volume creation but with root as owner which makes it unusable.
     && mkdir /home/$USERNAME/.elm \
     && chown $USERNAME:$USERNAME /home/$USERNAME/.elm
+
+# Custom part
+RUN npm install http-server -g \
+    npm install json-server -g
