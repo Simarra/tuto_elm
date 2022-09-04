@@ -6,6 +6,8 @@ import Html.Attributes exposing (type_)
 import Html.Events exposing (onClick)
 import Http
 
+import Json.Decode exposing (Decoder, Error(..), decodeString, list, string)
+
 
 type alias ShoppingList =
     { articles : List String
@@ -15,7 +17,7 @@ type alias ShoppingList =
 
 type Msg
     = SendHttpRequest
-    | DataReceived (Result Http.Error String)
+    | DataReceived (Result Http.Error ( List String) )
 
 view : ShoppingList -> Html Msg
 view shopList =
@@ -51,7 +53,7 @@ viewArticles shopList =
 
 url : String
 url =
-    "https://elm-lang.org/assets/public-opinion.txt"
+    "http://localhost:5019/articles"
 
 
 buildErrorMessages : Http.Error -> String
@@ -72,8 +74,21 @@ getArticles : Cmd Msg
 getArticles =
     Http.get
         { url = url
-        , expect = Http.expectString DataReceived
+        , expect = Http.expectJson DataReceived articlesDecoder
         }
+
+articlesDecoder : Decoder (List String)
+articlesDecoder =
+   list string
+
+handleJsonError : Json.Decode.Error -> Maybe String
+handleJsonError err =
+  case err of 
+    Failure errMessage _ ->
+      Just errMessage
+    _ ->
+      Just "Generic Json error. For more detail, please implement it"
+      
 
 
 update : Msg -> ShoppingList -> ( ShoppingList, Cmd Msg )
@@ -82,11 +97,7 @@ update msg model =
         SendHttpRequest ->
             ( model, getArticles )
 
-        DataReceived (Ok articlesStr) ->
-            let
-                articles =
-                    String.split "," articlesStr
-            in
+        DataReceived (Ok articles) ->
             ( { model | articles = articles }, Cmd.none )
 
         DataReceived (Err httpError) ->
