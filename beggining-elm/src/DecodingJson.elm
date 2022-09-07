@@ -2,30 +2,24 @@ module DecodingJson exposing (main)
 
 import Browser
 import Html exposing (..)
+import Html.Attributes exposing (href)
 import Html.Events exposing (onClick)
 import Http
-import Json.Decode as Decode
-    exposing
-        ( Decoder
-        , decodeString
-        , field
-        , int
-        , list
-        , map3
-        , string
-        )
-import Json.Decode.Pipeline exposing (optional, optionalAt, required, requiredAt)
+import RemoteData exposing (RemoteData, WebData)
+import Json.Decode as Decode exposing (Decoder, int, list, string)
+import Json.Decode.Pipeline exposing (required)
+
 
 type alias Post =
     { id : Int
     , title : String
-    , author : String
+    , authorName : String
+    , authorUrl : String
     }
 
 
 type alias Model =
-    { posts : List Post
-    , errorMessage : Maybe String
+    { posts : WebData (List Post)
     }
 
 
@@ -89,34 +83,32 @@ viewPost post =
         , td []
             [ text post.title ]
         , td []
-            [ text post.author ]
+            [ a [ href post.authorUrl ] [ text post.authorName ] ]
         ]
 
 
 type Msg
     = SendHttpRequest
-    | DataReceived (Result Http.Error (List Post))
+    | DataReceived (WebData (List Post))
 
 
 postDecoder : Decoder Post
 postDecoder =
-    -- map3 Post
-    --     (field "id" int)
-    --     (field "title" string)
-    --     (field "author" string)
-    
-    -- Better way to the to stuff:
     Decode.succeed Post
-      |> required "id" int
-      |> required "title" string
-      |> optional "author" string "Anonymous"
+        |> required "id" int
+        |> required "title" string
+        |> required "authorName" string
+        |> required "authorUrl" string
 
 
 httpCommand : Cmd Msg
 httpCommand =
     Http.get
         { url = "http://localhost:5019/posts"
-        , expect = Http.expectJson DataReceived (list postDecoder)
+        , expect =
+          list postDecoder 
+            |> Http.expectJson (RemoteData.fromResult >> DataReceived)
+          
         }
 
 
@@ -163,9 +155,7 @@ buildErrorMessage httpError =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { posts = []
-      , errorMessage = Nothing
-      }
+    ( { posts = RemoteData.NotAsked }
     , Cmd.none
     )
 
